@@ -429,3 +429,39 @@
         (ok true)
     )
 )
+
+;; Admin function to manage approved tokens
+;; Update admin functions with validation
+
+(define-public (set-approved-token (token principal) (approved bool))
+    (begin
+        (asserts! (is-eq tx-sender (var-get contract-owner)) ERR-NOT-AUTHORIZED)
+        (asserts! (is-valid-principal token) ERR-INVALID-ADDRESS)
+        (asserts! (not (is-eq token .base)) ERR-INVALID-TOKEN)  ;; Prevent setting base token
+        
+        ;; Additional check to prevent removing critical tokens
+        (asserts! (or 
+            approved  ;; If we're approving, this check doesn't matter
+            (not (is-critical-token token))  ;; If removing, check it's not critical
+        ) ERR-NOT-AUTHORIZED)
+        
+        (map-set approved-tokens token approved)
+        (ok true)
+    )
+)
+
+(define-public (set-allowed-symbol (symbol (string-ascii 10)) (allowed bool))
+    (begin
+        (asserts! (is-eq tx-sender (var-get contract-owner)) ERR-NOT-AUTHORIZED)
+        (asserts! (is-valid-symbol symbol) ERR-EMPTY-SYMBOL)
+        
+        ;; Additional check to prevent removing critical symbols
+        (asserts! (or 
+            allowed  ;; If we're allowing, this check doesn't matter
+            (not (is-critical-symbol symbol))  ;; If removing, check it's not critical
+        ) ERR-NOT-AUTHORIZED)
+        
+        (map-set allowed-symbols symbol allowed)
+        (ok true)
+    )
+)
