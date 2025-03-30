@@ -238,3 +238,87 @@
         (>= amount (/ (* strike u100000000) (get-current-price)))
     )
 )
+
+(define-private (exercise-call 
+    (token <sip-010-trait>)
+    (option {
+        writer: principal,
+        holder: (optional principal),
+        collateral-amount: uint,
+        strike-price: uint,
+        premium: uint,
+        expiry: uint,
+        is-exercised: bool,
+        option-type: (string-ascii 4),
+        state: (string-ascii 9)
+    }) 
+    (current-price uint))
+    (let (
+        (profit (- current-price (get strike-price option)))
+        (payout (get-min profit (get collateral-amount option)))
+    )
+        ;; Transfer payout using token
+        (try! (as-contract (contract-call? token transfer
+            payout
+            tx-sender
+            (unwrap! (get holder option) ERR-NOT-AUTHORIZED)
+            none)))
+        
+        ;; Return remaining collateral to writer
+        (try! (as-contract (contract-call? token transfer
+            (- (get collateral-amount option) payout)
+            tx-sender
+            (get writer option)
+            none)))
+        
+        ;; Update option state
+        (map-set options (get-option-id option) (merge option {
+            is-exercised: true,
+            state: "EXERCISED"
+        }))
+        
+        (ok true)
+    )
+)
+
+(define-private (exercise-put
+    (token <sip-010-trait>)
+    (option {
+        writer: principal,
+        holder: (optional principal),
+        collateral-amount: uint,
+        strike-price: uint,
+        premium: uint,
+        expiry: uint,
+        is-exercised: bool,
+        option-type: (string-ascii 4),
+        state: (string-ascii 9)
+    })
+    (current-price uint))
+    (let (
+        (profit (- (get strike-price option) current-price))
+        (payout (get-min profit (get collateral-amount option)))
+    )
+        ;; Transfer payout using token
+        (try! (as-contract (contract-call? token transfer
+            payout
+            tx-sender
+            (unwrap! (get holder option) ERR-NOT-AUTHORIZED)
+            none)))
+        
+        ;; Return remaining collateral to writer
+        (try! (as-contract (contract-call? token transfer
+            (- (get collateral-amount option) payout)
+            tx-sender
+            (get writer option)
+            none)))
+        
+        ;; Update option state
+        (map-set options (get-option-id option) (merge option {
+            is-exercised: true,
+            state: "EXERCISED"
+        }))
+        
+        (ok true)
+    )
+)
