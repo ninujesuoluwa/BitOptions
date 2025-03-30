@@ -377,3 +377,55 @@
         (is-eq token .wrapped-stx)
     )
 )
+
+(define-private (is-critical-symbol (symbol (string-ascii 10)))
+    ;; Add any symbols that shouldn't be removed
+    (or
+        (is-eq symbol "BTC-USD")
+        (is-eq symbol "STX-USD")
+    )
+)
+
+;; Read-only functions
+
+(define-read-only (get-option (option-id uint))
+    (map-get? options option-id)
+)
+
+(define-read-only (get-user-position (user principal))
+    (map-get? user-positions user)
+)
+
+(define-read-only (get-protocol-fee-rate)
+    (var-get protocol-fee-rate)
+)
+
+;; Admin functions
+
+(define-public (set-protocol-fee-rate (new-rate uint))
+    (begin
+        (asserts! (is-eq tx-sender (var-get contract-owner)) ERR-NOT-AUTHORIZED)
+        (asserts! (<= new-rate u1000) ERR-INVALID-PREMIUM)  ;; Max 10%
+        (var-set protocol-fee-rate new-rate)
+        (ok true)
+    )
+)
+
+(define-public (update-price-feed 
+    (symbol (string-ascii 10))
+    (price uint)
+    (timestamp uint))
+    (begin
+        (asserts! (is-eq tx-sender (var-get contract-owner)) ERR-NOT-AUTHORIZED)
+        (asserts! (is-allowed-symbol symbol) ERR-INVALID-SYMBOL)
+        (asserts! (>= timestamp block-height) ERR-INVALID-TIMESTAMP)
+        (asserts! (> price u0) ERR-INVALID-STRIKE-PRICE)
+        
+        (map-set price-feeds symbol {
+            price: price,
+            timestamp: timestamp,
+            source: tx-sender
+        })
+        (ok true)
+    )
+)
